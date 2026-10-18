@@ -34,6 +34,14 @@ is_ours() {
   esac
 }
 services=(residential-panel.service residential-agent.service three-nodes.service residential-ip-cert-renew.timer residential-ip-cert-renew.service)
+verified_owner=0
+for name in "${services[@]}"; do
+  if is_ours "$name"; then verified_owner=1; fi
+done
+if (( !verified_owner )); then
+  echo "没有识别到由本安装器创建的服务。为避免误删，未修改配置。" >&2
+  exit 0
+fi
 for name in "${services[@]}"; do
   if [[ -e "$unit/$name" ]] && ! is_ours "$name"; then
     echo "发现同名非本项目服务：$name；为了安全，取消卸载。" >&2
@@ -74,7 +82,7 @@ systemctl daemon-reload
 if (( owned_nodes )); then
   rm -f /etc/sing-box/three-nodes.json
 fi
-if [[ ! -e "$unit/residential-agent.service" && ! -e "$unit/residential-panel.service" ]]; then
+if (( verified_owner )); then
   rm -rf /etc/residential-stack /opt/residential-stack-agent /opt/residential-stack-bin
   rm -rf /opt/residential-ip-certbot
   rm -f /usr/local/sbin/residential-ip-deploy-cert
